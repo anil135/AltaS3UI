@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S3 Media Retrieval Portal</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>S3 Media Retrieval Portal</h1>
+      <p>Retrieve Avigilon Alta images and videos by camera, location, date, and time range.</p>
+    </div>
+    <div class="actions">
+      <button id="loginBtn" class="btn">Sign in (Microsoft SSO)</button>
+      <button id="logoutBtn" class="btn btn-secondary">Sign out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Search Filters</h2>
+      <form id="searchForm">
+        <div class="grid">
+          <label>
+            Camera
+            <input type="text" id="cameraId" required placeholder="e.g. CAM-101">
+          </label>
+          <label>
+            Location
+            <input type="text" id="locationId" required placeholder="e.g. HQ-North">
+          </label>
+          <label>
+            Date
+            <input type="date" id="date" required>
+          </label>
+          <label>
+            Start Time
+            <input type="time" id="startTime" required>
+          </label>
+          <label>
+            End Time
+            <input type="time" id="endTime" required>
+          </label>
+          <label>
+            Media Type
+            <select id="mediaType">
+              <option value="all">All</option>
+              <option value="image">Image</option>
+              <option value="video">Video</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions-row">
+          <button type="submit" class="btn">Search</button>
+          <button type="button" class="btn btn-secondary" id="clearBtn">Clear</button>
+        </div>
+      </form>
+      <p id="status" class="status"></p>
+    </section>
+
+    <section class="card">
+      <h2>Results</h2>
+      <div id="results" class="results"></div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

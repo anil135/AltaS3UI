@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Avigilon Alta to S3 migration and retrieval stack
+
+Parameters:
+  BucketPrefix:
+    Type: String
+    Description: Prefix used to create one bucket per location
+  AltaBaseUrl:
+    Type: String
+    Description: Avigilon Alta API base URL
+  AltaApiTokenParam:
+    Type: String
+    Description: SSM SecureString name containing Alta API token
+  AltaConnectorTokenParam:
+    Type: String
+    Description: SSM SecureString name containing cloud connector token
+  ScheduleExpression:
+    Type: String
+    Default: rate(5 minutes)
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 120
+    MemorySize: 512
+    Tracing: Active
+
+Resources:
+  MediaIndexTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: N
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TableName: MediaIndex
+
+  AltaExportWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: alta_export_worker.lambda_handler
+      Environment:
+        Variables:
+          MEDIA_INDEX_TABLE: !Ref MediaIndexTable
+          BUCKET_PREFIX: !Ref BucketPrefix
+          ALTA_BASE_URL: !Ref AltaBaseUrl
+          ALTA_API_TOKEN_PARAM: !Ref AltaApiTokenParam
+          ALTA_CONNECTOR_TOKEN_PARAM: !Ref AltaConnectorTokenParam
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MediaIndexTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:CreateBucket
+                - s3:PutBucketPublicAccessBlock
+                - s3:PutBucketTagging
+                - s3:PutEncryptionConfiguration
+                - s3:HeadBucket
+                - s3:PutObject
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: "*"
+      Events:
+        ScheduledRun:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleExpression
+
+  BootstrapLocationBucketsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: bootstrap_location_buckets.lambda_handler
+      Environment:
+        Variables:
+          BUCKET_PREFIX: !Ref BucketPrefix
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:CreateBucket
+                - s3:PutBucketPublicAccessBlock
+                - s3:HeadBucket
+              Resource: "*"
+
+  MediaSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_function.lambda_handler
+      Environment:
+        Variables:
+          MEDIA_INDEX_TABLE: !Ref MediaIndexTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MediaIndexTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: "*"
+
+Outputs:
+  MediaIndexTableName:
+    Value: !Ref MediaIndexTable
+  AltaExportWorkerFunctionName:
+    Value: !Ref AltaExportWorkerFunction
+  MediaSearchFunctionName:
+    Value: !Ref MediaSearchFunction
